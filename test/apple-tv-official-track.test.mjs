@@ -47,6 +47,7 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
 		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
 		if (template === "surge") {
+			assert.equal(pattern.includes(","), false, "Surge script patterns must not contain unescaped parameter separators");
 			const argumentDeclaration = content.match(/^#!arguments = (.+)$/m)?.[1] ?? "";
 			assert.deepEqual(
 				[...argumentDeclaration.matchAll(/(?:^|,)([A-Za-z0-9]+):(?:"[^"]*"|true|false)/g)].map(match => match[1]),
