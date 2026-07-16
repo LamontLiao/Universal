@@ -45,6 +45,10 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.equal(rule.test(`${english}?subtype=Official`), false);
 		assert.equal(rule.test(`${english}?dualsubs_official_fetch=1`), false);
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
-		assert.match(content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "", /argument=\{\{\{scriptParams\}\}\}/);
+		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
+		if (template === "surge") {
+			assert.match(content, /^#!arguments=Types=.*&PrimaryLanguage=AUTO&SecondaryLanguage=ZH/m);
+			assert.match(directRule, /Languages\[0\]=%PrimaryLanguage%&Languages\[1\]=%SecondaryLanguage%/);
+		} else assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
 	}
 });
