@@ -1,6 +1,6 @@
 import { URL } from "@nsnanocat/url";
 
-const subtitleFile = /^(?<prefix>.+)_(?<language>[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)?)_subtitles_(?<version>V\d+)-(?<segment>\d+)\.webvtt$/;
+const subtitleFile = /^(?<prefix>.+)_(?<language>[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)*)_subtitles_(?<version>V\d+)-(?<segment>\d+)\.webvtt$/;
 
 export function subtitleTrack(requestURL) {
 	const url = new URL(requestURL);
@@ -20,28 +20,21 @@ export function isWebVTT(body = "") {
 	return /^\s*WEBVTT(?:\s|$)/.test(body) && /\d{2}:\d{2}(?::\d{2})?\.\d{3}\s+-->/.test(body);
 }
 
-export function isEnglish(language = "") {
-	return /^en(?:[-_]|$)/i.test(language);
+export function matchesLanguage(language = "", languages = []) {
+	return languages.some(item => item.toLowerCase() === language.toLowerCase());
 }
 
-function simplifiedPriority(language = "") {
-	if (/^(?:cmn|zh|zho)[-_](?:Hans|CN|SG)$/i.test(language)) return 2;
-	if (/^(?:cmn|zh|zho)$/i.test(language)) return 1;
-	return 0;
-}
-
-export function rememberSimplifiedChinese(requestURL, cache = {}) {
+export function rememberTargetTrack(requestURL, target, languages, cache = {}) {
 	const track = subtitleTrack(requestURL);
-	const priority = simplifiedPriority(track?.language);
-	if (!track || !priority || (cache[track.key]?.priority ?? 0) > priority) return cache;
+	if (!track || !matchesLanguage(track.language, languages)) return cache;
 	const path = track.url.pathname.split("/");
 	path[path.length - 1] = `${track.prefix}_${track.language}_subtitles_${track.version}-{segment}.webvtt`;
-	cache[track.key] = { url: `${track.url.origin}${path.join("/")}${track.url.search}`, priority, updatedAt: Date.now() };
+	cache[`${track.key}:${target}`] = { url: `${track.url.origin}${path.join("/")}${track.url.search}`, updatedAt: Date.now() };
 	return cache;
 }
 
-export function cachedSimplifiedChineseURL(requestURL, cache = {}) {
+export function cachedTargetURL(requestURL, target, languages, cache = {}) {
 	const track = subtitleTrack(requestURL);
-	if (!track || !isEnglish(track.language)) return undefined;
-	return cache[track.key]?.url?.replace("{segment}", track.segment);
+	if (!track || !matchesLanguage(track.language, languages)) return undefined;
+	return cache[`${track.key}:${target}`]?.url?.replace("{segment}", track.segment);
 }
