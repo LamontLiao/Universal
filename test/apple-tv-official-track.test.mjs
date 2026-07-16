@@ -35,19 +35,21 @@ test("validates and decodes WebVTT bodies", () => {
 });
 
 test("Loon and Surge rules match direct fragments but exclude internal and legacy requests", () => {
+	const patterns = {};
 	for (const template of ["loon", "surge"]) {
 		const content = readFileSync(new URL(`../template/${template}.handlebars`, import.meta.url), "utf8");
 		const pattern = template === "loon"
 			? content.match(/^http-response (.+) requires-body=1, .*Official\.Direct\.response,/m)?.[1]
 			: content.match(/^🍿️ DualSubs\.TV\+\.Official\.Direct\.response = .*pattern=(.+), requires-body=1,/m)?.[1];
+		patterns[template] = pattern;
 		const rule = new RegExp(pattern);
 		assert.equal(rule.test(english), true);
 		assert.equal(rule.test(`${english}?subtype=Official`), false);
 		assert.equal(rule.test(`${english}?dualsubs_official_fetch=1`), false);
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
 		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
+		assert.equal(pattern.includes(","), false, `${template} script patterns must not contain unescaped parameter separators`);
 		if (template === "surge") {
-			assert.equal(pattern.includes(","), false, "Surge script patterns must not contain unescaped parameter separators");
 			const argumentDeclaration = content.match(/^#!arguments = (.+)$/m)?.[1] ?? "";
 			assert.deepEqual(
 				[...argumentDeclaration.matchAll(/(?:^|,)([A-Za-z0-9]+):(?:"[^"]*"|true|false)/g)].map(match => match[1]),
@@ -62,4 +64,5 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 			assert.equal(parsed.get("Languages[1]"), '"ZH-HANS"');
 		} else assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
 	}
+	assert.equal(patterns.loon, patterns.surge, "Loon and Surge direct subtitle rules must stay in sync");
 });
