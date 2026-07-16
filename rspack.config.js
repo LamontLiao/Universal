@@ -5,6 +5,7 @@ import pkg from "./package.json" with { type: "json" };
 
 export default defineConfig({
 	entry: {
+		"AppleTV.OfficialMerge.response": "./src/AppleTV.OfficialMerge.response.js",
 		"Composite.Subtitles.response": "./src/Composite.Subtitles.response.js",
 		"External.Lyrics.response": "./src/External.Lyrics.response.js",
 		"Manifest.response": "./src/Manifest.response.js",
