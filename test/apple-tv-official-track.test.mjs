@@ -48,3 +48,14 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.match(content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "", /argument=\{\{\{scriptParams\}\}\}/);
 	}
 });
+
+test("Loon uses a suffix wildcard for Apple TV MITM while Surge keeps its host pattern", () => {
+	const loon = readFileSync(new URL("../template/loon.handlebars", import.meta.url), "utf8");
+	const plugin = readFileSync(new URL("../dist/DualSubs.Universal.plugin", import.meta.url), "utf8");
+	const surge = readFileSync(new URL("../template/surge.handlebars", import.meta.url), "utf8");
+	assert.match(loon, /^hostname = .*\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(loon, /^hostname = .*vod-\*\.tv\.apple\.com/m);
+	assert.match(plugin, /^hostname = .*\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(plugin, /^hostname = .*vod-\*\.tv\.apple\.com/m);
+	assert.match(surge, /^hostname = .*vod-\*\.tv\.apple\.com/m);
+});
