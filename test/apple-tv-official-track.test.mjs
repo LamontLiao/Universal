@@ -87,13 +87,19 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 	}
 });
 
-test("Loon uses a suffix wildcard for Apple TV MITM while Surge keeps its host pattern", () => {
+test("Loon keeps its MITM form while Surge appends its own Apple TV suffix wildcard", () => {
 	const loon = readFileSync(new URL("../template/loon.handlebars", import.meta.url), "utf8");
 	const plugin = readFileSync(new URL("../dist/DualSubs.Universal.plugin", import.meta.url), "utf8");
 	const surge = readFileSync(new URL("../template/surge.handlebars", import.meta.url), "utf8");
+	const module = readFileSync(new URL("../dist/DualSubs.Universal.sgmodule", import.meta.url), "utf8");
 	assert.match(loon, /^hostname = .*\*\.tv\.apple\.com/m);
 	assert.doesNotMatch(loon, /^hostname = .*vod-\*\.tv\.apple\.com/m);
 	assert.match(plugin, /^hostname = .*\*\.tv\.apple\.com/m);
 	assert.doesNotMatch(plugin, /^hostname = .*vod-\*\.tv\.apple\.com/m);
-	assert.match(surge, /^hostname = .*vod-\*\.tv\.apple\.com/m);
+	assert.match(surge, /^hostname = %APPEND% .*\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(surge, /^hostname = %APPEND% .*vod-\*\.tv\.apple\.com/m);
+	assert.match(module, /^hostname = %APPEND% .*\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(module, /^hostname = %APPEND% .*vod-\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(surge, /s\.mzstatic\.com/);
+	assert.doesNotMatch(module, /s\.mzstatic\.com/);
 });
