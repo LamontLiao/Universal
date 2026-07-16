@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { cachedTargetURL, isWebVTT, matchesLanguage, rememberTargetTrack, responseText, subtitleTrack } from "../src/function/apple-tv-official-track.mjs";
+import { cachedTargetOffset, cachedTargetURL, cueMatchScore, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleTrack } from "../src/function/apple-tv-official-track.mjs";
 
 const english = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/english-uuid/P133_A188_en_subtitles_V2-10.webvtt";
 const chinese = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-11.webvtt";
@@ -25,6 +25,42 @@ test("keeps target-language caches isolated", () => {
 	assert.match(cachedTargetURL(english, "ZH", ["en"], cache), /cmn-Hans/);
 	assert.match(cachedTargetURL(japanese, "DE", ["ja-JP"], cache), /de-DE/);
 	assert.equal(matchesLanguage("cmn-Hant", ["cmn-Hans"]), false);
+});
+
+test("caches and reuses the learned segment offset", () => {
+	const cache = rememberTargetTrack(chinese, "ZH", ["cmn-Hans"], {});
+	assert.match(cachedTargetURL(english, "ZH", ["en"], cache), /V2-10\.webvtt$/);
+	rememberTargetOffset(english, "ZH", ["en"], 1, cache);
+	assert.equal(cachedTargetOffset(english, "ZH", ["en"], cache), 1);
+	assert.match(cachedTargetURL(english, "ZH", ["en"], cache), /V2-11\.webvtt$/);
+	rememberTargetTrack(chinese, "ZH", ["cmn-Hans"], cache);
+	assert.equal(cachedTargetOffset(english, "ZH", ["en"], cache), 1);
+	rememberTargetTrack(chinese.replace("chinese-uuid", "alternate-uuid"), "ZH", ["cmn-Hans"], cache);
+	assert.equal(cachedTargetOffset(english, "ZH", ["en"], cache), undefined);
+});
+
+test("selects aligned and shifted subtitle segments by cue timestamps", () => {
+	const vtt = (...times) => ({ body: times.map(timeStamp => ({ timeStamp })) });
+	const primary = vtt(3_599_117, 3_605_332, 3_607_876);
+	const previous = vtt(3_501_685, 3_505_332, 3_599_117);
+	const aligned = vtt(3_599_117, 3_605_332, 3_607_876);
+	const next = vtt(3_707_394, 3_710_000);
+	assert.equal(cueMatchScore(primary, previous), 1);
+	assert.equal(selectBestVTTMatch(primary, [
+		{ offset: 0, vtt: previous },
+		{ offset: 1, vtt: aligned },
+		{ offset: -1, vtt: next },
+	])?.offset, 1);
+	assert.equal(selectBestVTTMatch(primary, [
+		{ offset: 0, vtt: aligned },
+		{ offset: 1, vtt: next },
+		{ offset: -1, vtt: previous },
+	])?.offset, 0);
+	assert.equal(selectBestVTTMatch(primary, [
+		{ offset: 0, vtt: next },
+		{ offset: 1, vtt: previous },
+		{ offset: -1, vtt: aligned },
+	])?.offset, -1);
 });
 
 test("validates and decodes WebVTT bodies", () => {
