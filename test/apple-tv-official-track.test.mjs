@@ -88,8 +88,8 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 	}
 });
 
-test("Surge uses query-string module parameters and percent placeholders", () => {
-	const expectedArguments = "#!arguments=Types=Official,Translate&PrimaryLanguage=AUTO&SecondaryLanguage=ZH&Position=Reverse&Vendor=Google&ShowOnly=false&LogLevel=WARN";
+test("Surge separates module parameters and keeps percent placeholders", () => {
+	const expectedArguments = "#!arguments=Types:\"Official,Translate\",PrimaryLanguage:\"AUTO\",SecondaryLanguage:\"ZH\",Position:\"Reverse\",Vendor:\"Google\",ShowOnly:false,LogLevel:\"WARN\"";
 	const expectedScriptArgument = 'argument=Types="%Types%"&Languages[0]="%PrimaryLanguage%"&Languages[1]="%SecondaryLanguage%"&Position="%Position%"&Vendor="%Vendor%"&ShowOnly="%ShowOnly%"&LogLevel="%LogLevel%"';
 	for (const path of ["../template/surge.handlebars", "../dist/DualSubs.Universal.sgmodule"]) {
 		const content = readFileSync(new URL(path, import.meta.url), "utf8");
