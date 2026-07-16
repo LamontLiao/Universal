@@ -47,8 +47,18 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
 		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
 		if (template === "surge") {
-			assert.match(content, /^#!arguments=Types=.*&PrimaryLanguage=AUTO&SecondaryLanguage=ZH/m);
-			assert.match(directRule, /Languages\[0\]=%PrimaryLanguage%&Languages\[1\]=%SecondaryLanguage%/);
+			const argumentDeclaration = content.match(/^#!arguments = (.+)$/m)?.[1] ?? "";
+			assert.deepEqual(
+				[...argumentDeclaration.matchAll(/(?:^|,)([A-Za-z0-9]+):(?:"[^"]*"|true|false)/g)].map(match => match[1]),
+				["Types", "PrimaryLanguage", "SecondaryLanguage", "Position", "Vendor", "ShowOnly", "LogLevel"],
+			);
+			const runtimeRule = directRule.replaceAll("\\{{{", "{{{");
+			assert.match(runtimeRule, /Languages\[0\]="\{\{\{PrimaryLanguage\}\}\}"&Languages\[1\]="\{\{\{SecondaryLanguage\}\}\}"/);
+			const selected = { Types: "Official", PrimaryLanguage: "EN", SecondaryLanguage: "ZH-HANS", Position: "Forward", Vendor: "Google", ShowOnly: "false", LogLevel: "INFO" };
+			const scriptArgument = runtimeRule.match(/argument=(.+)$/)?.[1].replace(/\{\{\{([A-Za-z0-9]+)\}\}\}/g, (_, key) => selected[key]);
+			const parsed = new URLSearchParams(scriptArgument);
+			assert.equal(parsed.get("Languages[0]"), '"EN"');
+			assert.equal(parsed.get("Languages[1]"), '"ZH-HANS"');
 		} else assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
 	}
 });
