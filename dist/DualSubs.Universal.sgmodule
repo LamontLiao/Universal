@@ -7,7 +7,7 @@
 #!category = 🍿️ DualSubs
 #!date = 2026-07-16 21:30:02
 #!version = 1.7.5
-#!arguments=Types:"Official,Translate",PrimaryLanguage:"AUTO",SecondaryLanguage:"ZH",Position:"Reverse",Vendor:"Google",ShowOnly:false,LogLevel:"WARN"
+#!arguments=Types=Official%2CTranslate&PrimaryLanguage=AUTO&SecondaryLanguage=ZH&Position=Reverse&Vendor=Google&ShowOnly=false&LogLevel=WARN
 #!arguments-desc = Types: 字幕类型（Official=官方合并；Translate=机器翻译）\nLanguages[0]: 主语言（源语言）\nLanguages[1]: 副语言（目标语言）\nPosition: 主语言位置（Forward=上；Reverse=下）\nVendor: 翻译服务（Google/Microsoft）\nShowOnly: 仅显示翻译字幕\nLogLevel: 日志等级
 
 [General]
