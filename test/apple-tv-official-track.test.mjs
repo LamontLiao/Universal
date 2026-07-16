@@ -81,7 +81,9 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.equal(rule.test(`${english}?subtype=Official`), false);
 		assert.equal(rule.test(`${english}?dualsubs_official_fetch=1`), false);
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
-		assert.match(content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "", /argument=\{\{\{scriptParams\}\}\}/);
+		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
+		assert.match(directRule, /AppleTV\.OfficialMerge\.v2\.response\.bundle\.js/);
+		assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
 	}
 });
 
