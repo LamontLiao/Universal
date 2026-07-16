@@ -83,7 +83,21 @@ test("Loon and Surge rules match direct fragments but exclude internal and legac
 		assert.equal(rule.test("https://vod-fa-aoc.tv.apple.com/itunes-assets/id/empty-1.webvtt"), false);
 		const directRule = content.match(/^.*Official\.Direct\.response.*$/m)?.[0] ?? "";
 		assert.match(directRule, /AppleTV\.OfficialMerge\.v2\.response\.bundle\.js/);
-		assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
+		if (template === "loon") assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}/);
+		else assert.ok(directRule.endsWith('argument=Types="%Types%"&Languages[0]="%PrimaryLanguage%"&Languages[1]="%SecondaryLanguage%"&Position="%Position%"&Vendor="%Vendor%"&ShowOnly="%ShowOnly%"&LogLevel="%LogLevel%"'));
+	}
+});
+
+test("Surge uses query-string module parameters and percent placeholders", () => {
+	const expectedArguments = "#!arguments=Types=Official,Translate&PrimaryLanguage=AUTO&SecondaryLanguage=ZH&Position=Reverse&Vendor=Google&ShowOnly=false&LogLevel=WARN";
+	const expectedScriptArgument = 'argument=Types="%Types%"&Languages[0]="%PrimaryLanguage%"&Languages[1]="%SecondaryLanguage%"&Position="%Position%"&Vendor="%Vendor%"&ShowOnly="%ShowOnly%"&LogLevel="%LogLevel%"';
+	for (const path of ["../template/surge.handlebars", "../dist/DualSubs.Universal.sgmodule"]) {
+		const content = readFileSync(new URL(path, import.meta.url), "utf8");
+		assert.equal(content.split("\n").find(line => line.startsWith("#!arguments")), expectedArguments);
+		assert.doesNotMatch(content, /\{\{\{(?:arguments|scriptParams|Types|Languages)/);
+		const scriptLines = content.split("\n").filter(line => line.includes(", argument="));
+		assert.equal(scriptLines.length, 126);
+		for (const line of scriptLines) assert.ok(line.endsWith(expectedScriptArgument));
 	}
 });
 
