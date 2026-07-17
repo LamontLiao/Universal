@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { cachedTargetURL, cueMatchScore, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleTrack } from "../src/function/apple-tv-official-track.mjs";
+
+const english = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/english-uuid/P133_A188_en_subtitles_V2-10.webvtt";
+const chinese = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-11.webvtt";
+const japanese = "https://vod-fa-svod.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/japanese-uuid/P133_A188_ja-JP_subtitles_V2-10.webvtt";
+
+test("recognizes only direct Apple aoc/svod subtitle fragments", () => {
+	assert.equal(subtitleTrack(english)?.language, "en");
+	assert.equal(subtitleTrack(japanese)?.segment, "10");
+	assert.equal(subtitleTrack(`${english}?subtype=Official`), undefined);
+	assert.equal(subtitleTrack(`${english}?dualsubs_official_fetch=1`), undefined);
+	assert.equal(subtitleTrack("https://s.mzstatic.com/P133_A188_en_subtitles_V2-10.webvtt"), undefined);
+	assert.equal(subtitleTrack("https://vod-fa-aoc.tv.apple.com/itunes-assets/default_en_subtitles_V2-10.webvtt"), undefined);
+});
+
+test("records the observed secondary path and reuses it for any selected primary", () => {
+	const cache = rememberTargetTrack(chinese, "ZH", ["cmn-Hans"], {});
+	assert.equal(cachedTargetURL(english, "ZH", ["en"], cache), "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-10.webvtt");
+	rememberTargetOffset(english, "ZH", ["en"], 1, cache);
+	assert.match(cachedTargetURL(english, "ZH", ["en"], cache), /V2-11\.webvtt$/);
+	assert.match(cachedTargetURL(japanese, "ZH", ["ja", "ja-JP"], cache), /cmn-Hans_subtitles_V2-11\.webvtt$/);
+});
+
+test("normalizes Apple language separators and keeps targets isolated", () => {
+	assert.equal(matchesLanguage("zh_Hans", ["zh-Hans"]), true);
+	assert.equal(matchesLanguage("cmn-Hant", ["cmn-Hans"]), false);
+	const cache = rememberTargetTrack(chinese, "ZH-HANS", ["cmn-Hans"], {});
+	assert.equal(cachedTargetURL(english, "ZH", ["en"], cache), undefined);
+});
+
+test("chooses the segment with the best cue alignment", () => {
+	const vtt = (...times) => ({ body: times.map(timeStamp => ({ timeStamp })) });
+	const primary = vtt(3_599_117, 3_605_332, 3_607_876);
+	const previous = vtt(3_501_685, 3_505_332, 3_599_117);
+	const aligned = vtt(3_599_117, 3_605_332, 3_607_876);
+	assert.equal(cueMatchScore(primary, previous), 1);
+	assert.equal(selectBestVTTMatch(primary, [
+		{ offset: 0, vtt: previous },
+		{ offset: 1, vtt: aligned },
+	])?.offset, 1);
+});
+
+test("accepts real WebVTT cues and rejects empty bodies", () => {
+	const body = "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello";
+	assert.equal(isWebVTT(body), true);
+	assert.equal(isWebVTT("WEBVTT\n\n"), false);
+	assert.equal(responseText({ body: new TextEncoder().encode(body) }), body);
+});
+
+test("keeps native Loon and Surge arguments and MITM forms", () => {
+	for (const platform of ["loon", "surge"]) {
+		const content = readFileSync(new URL(`../template/${platform}.handlebars`, import.meta.url), "utf8");
+		const directRule = content.split("\n").find(line => line.includes("Official.Direct.response"));
+		const pattern = platform === "loon"
+			? directRule?.match(/^http-response (.+) requires-body=1,/)?.[1]
+			: directRule?.match(/pattern=(.+), requires-body=1,/)?.[1];
+		assert.equal(new RegExp(pattern).test(english), true);
+		assert.match(directRule, /UniversalForApple26\/dist\/AppleTV\.OfficialMerge\.response\.bundle\.js/);
+		assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}$/);
+		const mitm = content.split("\n").find(line => line.startsWith("hostname ="));
+		assert.match(mitm, /(^|, )vod-\*\.tv\.apple\.com(,|$)/);
+		assert.doesNotMatch(mitm, /(^|, )\*\.tv\.apple\.com(,|$)/);
+		assert.doesNotMatch(mitm, /s\.mzstatic\.com/);
+	}
+	const loon = readFileSync(new URL("../template/loon.handlebars", import.meta.url), "utf8");
+	const surge = readFileSync(new URL("../template/surge.handlebars", import.meta.url), "utf8");
+	assert.match(loon, /^\[Argument\]\n\{\{\{arguments\}\}\}$/m);
+	assert.match(surge, /^#!arguments = \{\{\{arguments\}\}\}$/m);
+	assert.match(surge, /^#!arguments-desc = \{\{\{argumentsDesc\}\}\}$/m);
+});
+
+test("generated Loon and Surge subscriptions keep their platform-specific parameters", () => {
+	const plugin = readFileSync(new URL("../dist/DualSubs.Universal.plugin", import.meta.url), "utf8");
+	const module = readFileSync(new URL("../dist/DualSubs.Universal.sgmodule", import.meta.url), "utf8");
+	const loonRule = plugin.split("\n").find(line => line.includes("Official.Direct.response"));
+	const surgeRule = module.split("\n").find(line => line.includes("Official.Direct.response"));
+	assert.match(loonRule, /argument=\[\{Types\},\{Languages\[0\]\},\{Languages\[1\]\},\{Position\},\{Vendor\},\{ShowOnly\},\{LogLevel\}\]$/);
+	assert.match(surgeRule, /argument=Types="\{\{\{Types\}\}\}"&Languages\[0\]="\{\{\{Languages\[0\]\}\}\}"/);
+	assert.match(plugin, /^hostname = .*vod-\*\.tv\.apple\.com/m);
+	assert.match(module, /^hostname = %APPEND% .*vod-\*\.tv\.apple\.com/m);
+	assert.doesNotMatch(`${plugin}\n${module}`, /s\.mzstatic\.com/);
+});
