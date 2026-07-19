@@ -30,7 +30,7 @@ async function run(request, response) {
 	const primaryVTT = VTT.parse(originalBody);
 	if (!primaryVTT.body?.length) return;
 	const headers = { ...request.headers, Accept: "text/vtt,*/*" };
-	for (const header of ["Host", "host", "Content-Length", "content-length", "If-None-Match", "if-none-match", "If-Modified-Since", "if-modified-since"]) delete headers[header];
+	for (const header of ["Host", "host", "Content-Length", "content-length", "Range", "range", "If-Range", "if-range", "If-None-Match", "if-none-match", "If-Modified-Since", "if-modified-since"]) delete headers[header];
 	const fetchSecondary = async offset => {
 		const targetURL = cachedTargetURL(request.url, secondary, primaryLanguages, cache, offset);
 		if (!targetURL) return;
@@ -39,7 +39,8 @@ async function run(request, response) {
 		try {
 			const targetResponse = await fetch({ url: internalURL.toString(), headers, timeout: 3_000 });
 			const body = responseText(targetResponse);
-			if (Number(targetResponse.statusCode ?? targetResponse.status) !== 200 || !isWebVTT(body)) return;
+			const status = Number(targetResponse.statusCode ?? targetResponse.status);
+			if (status < 200 || status >= 300 || !isWebVTT(body)) return;
 			const vtt = VTT.parse(body);
 			return vtt.body?.length ? { offset, vtt } : undefined;
 		} catch (error) {
@@ -48,17 +49,17 @@ async function run(request, response) {
 	};
 
 	const storedOffset = cache[`${track.key}:${secondary}`]?.offset;
-	const preferredOffsets = Number.isInteger(storedOffset) ? [storedOffset] : [0, 1, -1];
+	const preferredOffsets = track.segment ? (Number.isInteger(storedOffset) ? [storedOffset] : [0, 1, -1]) : [0];
 	let candidates = (await Promise.all(preferredOffsets.map(fetchSecondary))).filter(Boolean);
 	let best = selectBestVTTMatch(primaryVTT, candidates, Settings.Tolerance);
 	const minimumMatches = Math.max(1, Math.ceil(primaryVTT.body.length / 2));
-	if (Number.isInteger(storedOffset) && (!best || best.score < minimumMatches)) {
+	if (track.segment && Number.isInteger(storedOffset) && (!best || best.score < minimumMatches)) {
 		const fallbackOffsets = [0, 1, -1].filter(offset => offset !== storedOffset);
 		candidates = candidates.concat((await Promise.all(fallbackOffsets.map(fetchSecondary))).filter(Boolean));
 		best = selectBestVTTMatch(primaryVTT, candidates, Settings.Tolerance);
 	}
 	if (!best?.score) return;
-	if (best.score >= minimumMatches && best.offset !== storedOffset) {
+	if (track.segment && best.score >= minimumMatches && best.offset !== storedOffset) {
 		rememberTargetOffset(request.url, secondary, primaryLanguages, best.offset, cache);
 		Storage.setItem(CACHE_KEY, cache);
 	}

@@ -6,14 +6,23 @@ import { cachedTargetURL, cueMatchScore, isWebVTT, matchesLanguage, rememberTarg
 const english = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/english-uuid/P133_A188_en_subtitles_V2-10.webvtt";
 const chinese = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-11.webvtt";
 const japanese = "https://vod-fa-svod.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/japanese-uuid/P133_A188_ja-JP_subtitles_V2-10.webvtt";
+const fullEnglish = "https://vod-ap1-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/english-uuid/P133_A188_en_subtitles_V2-.webvtt?cc=US";
+const fullChinese = "https://vod-ap1-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-.webvtt?cc=US";
 
 test("recognizes only direct Apple aoc/svod subtitle fragments", () => {
 	assert.equal(subtitleTrack(english)?.language, "en");
 	assert.equal(subtitleTrack(japanese)?.segment, "10");
+	assert.equal(subtitleTrack(fullEnglish)?.segment, "");
 	assert.equal(subtitleTrack(`${english}?subtype=Official`), undefined);
 	assert.equal(subtitleTrack(`${english}?dualsubs_official_fetch=1`), undefined);
 	assert.equal(subtitleTrack("https://s.mzstatic.com/P133_A188_en_subtitles_V2-10.webvtt"), undefined);
 	assert.equal(subtitleTrack("https://vod-fa-aoc.tv.apple.com/itunes-assets/default_en_subtitles_V2-10.webvtt"), undefined);
+});
+
+test("records and reuses complete Apple subtitle-track URLs", () => {
+	const cache = rememberTargetTrack(fullChinese, "ZH", ["cmn-Hans"], {});
+	assert.equal(cachedTargetURL(fullEnglish, "ZH", ["en"], cache), fullChinese);
+	assert.equal(cachedTargetURL(english, "ZH", ["en"], cache), undefined);
 });
 
 test("records the observed secondary path and reuses it for any selected primary", () => {
@@ -67,6 +76,9 @@ test("keeps native Loon and Surge arguments and MITM forms", () => {
 	}
 	const loon = readFileSync(new URL("../template/loon.handlebars", import.meta.url), "utf8");
 	const surge = readFileSync(new URL("../template/surge.handlebars", import.meta.url), "utf8");
+	const fullRule = surge.split("\n").find(line => line.includes("Official.Direct.Full.response"));
+	const fullPattern = fullRule?.match(/pattern=(.+), requires-body=1,/)?.[1];
+	assert.equal(new RegExp(fullPattern).test(fullEnglish), true);
 	assert.match(loon, /^\[Argument\]\n\{\{\{arguments\}\}\}$/m);
 	assert.match(surge, /^#!arguments = \{\{\{arguments\}\}\}$/m);
 	assert.match(surge, /^#!arguments-desc = \{\{\{argumentsDesc\}\}\}$/m);

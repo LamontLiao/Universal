@@ -1,6 +1,6 @@
 import { URL } from "@nsnanocat/url";
 
-const SUBTITLE_FILE = /^(?<prefix>.+)_(?<language>[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)*)_subtitles_(?<version>V\d+)-(?<segment>\d+)\.webvtt$/;
+const SUBTITLE_FILE = /^(?<prefix>.+)_(?<language>[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)*)_subtitles_(?<version>V\d+)-(?<segment>\d*)\.webvtt$/;
 
 export function subtitleTrack(requestURL) {
 	const url = new URL(requestURL);
@@ -32,7 +32,7 @@ export function rememberTargetTrack(requestURL, target, languages, cache = {}) {
 	const track = subtitleTrack(requestURL);
 	if (!track || !matchesLanguage(track.language, languages)) return cache;
 	const path = track.url.pathname.split("/");
-	path[path.length - 1] = `${track.prefix}_${track.language}_subtitles_${track.version}-{segment}.webvtt`;
+	path[path.length - 1] = `${track.prefix}_${track.language}_subtitles_${track.version}-${track.segment ? "{segment}" : ""}.webvtt`;
 	const key = `${track.key}:${target}`;
 	const url = `${track.url.origin}${path.join("/")}${track.url.search}`;
 	cache[key] = { ...(cache[key]?.url === url ? cache[key] : {}), url, updatedAt: Date.now() };
@@ -43,6 +43,8 @@ export function cachedTargetURL(requestURL, target, primaryLanguages, cache = {}
 	const track = subtitleTrack(requestURL);
 	if (!track || !matchesLanguage(track.language, primaryLanguages)) return;
 	const entry = cache[`${track.key}:${target}`];
+	if (!entry?.url || (!track.segment && entry.url.includes("{segment}")) || (track.segment && !entry.url.includes("{segment}"))) return;
+	if (!track.segment) return entry.url;
 	const offset = Number.isInteger(segmentOffset) ? segmentOffset : Number.isInteger(entry?.offset) ? entry.offset : 0;
 	const segment = Number.parseInt(track.segment, 10) + offset;
 	return entry?.url && segment >= 0 ? entry.url.replace("{segment}", String(segment)) : undefined;
