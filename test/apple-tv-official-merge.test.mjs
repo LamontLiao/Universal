@@ -81,7 +81,7 @@ test("keeps native Loon and Surge arguments and MITM forms", () => {
 		assert.equal(new RegExp(pattern).test(english), true);
 		assert.match(directRule, /UniversalForApple26\/dist\/AppleTV\.OfficialMerge\.response\.bundle\.js/);
 		if (platform === "loon") assert.match(directRule, /argument=\{\{\{scriptParams\}\}\}$/);
-		else assert.match(directRule, /argument=Types="%Types%"&Languages\[0\]="%PrimaryLanguage%"&Languages\[1\]="%SecondaryLanguage%"/);
+		else assert.match(directRule, /argument=Types="\\\{\{\{Types\}\}\}"&Languages\[0\]="\\\{\{\{PrimaryLanguage\}\}\}"&Languages\[1\]="\\\{\{\{SecondaryLanguage\}\}\}"/);
 		const mitm = content.split("\n").find(line => line.startsWith("hostname ="));
 		assert.match(mitm, /(^|, )vod-\*\.tv\.apple\.com(,|$)/);
 		assert.doesNotMatch(mitm, /(^|, )\*\.tv\.apple\.com(,|$)/);
@@ -103,8 +103,7 @@ test("generated Loon and Surge subscriptions keep their platform-specific parame
 	const loonRule = plugin.split("\n").find(line => line.includes("Official.Direct.response"));
 	const surgeRule = module.split("\n").find(line => line.includes("Official.Direct.response"));
 	assert.match(loonRule, /argument=\[\{Types\},\{Languages\[0\]\},\{Languages\[1\]\},\{Position\},\{Vendor\},\{ShowOnly\},\{LogLevel\}\]$/);
-	assert.match(surgeRule, /argument=Types="%Types%"&Languages\[0\]="%PrimaryLanguage%"&Languages\[1\]="%SecondaryLanguage%"/);
-	assert.doesNotMatch(module, /\{\{\{(?:Types|Languages\[0\]|Languages\[1\])\}\}\}/);
+	assert.match(surgeRule, /argument=Types="\{\{\{Types\}\}\}"&Languages\[0\]="\{\{\{PrimaryLanguage\}\}\}"&Languages\[1\]="\{\{\{SecondaryLanguage\}\}\}"/);
 	assert.match(plugin, /^hostname = .*vod-\*\.tv\.apple\.com/m);
 	assert.match(module, /^hostname = %APPEND% .*vod-\*\.tv\.apple\.com/m);
 	assert.doesNotMatch(`${plugin}\n${module}`, /s\.mzstatic\.com/);
