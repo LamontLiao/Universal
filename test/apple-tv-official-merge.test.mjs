@@ -94,7 +94,7 @@ test("keeps native Loon and Surge arguments and MITM forms", () => {
 	assert.equal(new RegExp(fullPattern).test(fullEnglish), true);
 	assert.match(loon, /^\[Argument\]\n\{\{\{arguments\}\}\}$/m);
 	assert.match(surge, /^#!arguments = Types:"Official,Translate",PrimaryLanguage:"AUTO",SecondaryLanguage:"ZH",/m);
-	assert.match(surge, /^#!arguments-desc = \{\{\{argumentsDesc\}\}\}$/m);
+	assert.match(surge, /^#!arguments-desc = Types: 字幕类型（Official=官方合并；Translate=机器翻译）/m);
 });
 
 test("generated Loon and Surge subscriptions keep their platform-specific parameters", () => {
