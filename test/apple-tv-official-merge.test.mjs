@@ -93,7 +93,7 @@ test("keeps native Loon and Surge arguments and MITM forms", () => {
 	const fullPattern = fullRule?.match(/pattern=(.+), requires-body=1,/)?.[1];
 	assert.equal(new RegExp(fullPattern).test(fullEnglish), true);
 	assert.match(loon, /^\[Argument\]\n\{\{\{arguments\}\}\}$/m);
-	assert.match(surge, /^#!arguments = Types=Official,Translate&PrimaryLanguage=AUTO&SecondaryLanguage=ZH&/m);
+	assert.match(surge, /^#!arguments = Types:"Official,Translate",PrimaryLanguage:"AUTO",SecondaryLanguage:"ZH",/m);
 	assert.match(surge, /^#!arguments-desc = \{\{\{argumentsDesc\}\}\}$/m);
 });
 
