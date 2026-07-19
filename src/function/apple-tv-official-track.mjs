@@ -83,3 +83,12 @@ export function selectBestVTTMatch(primaryVTT = {}, candidates = [], tolerance =
 		.map(candidate => ({ ...candidate, score: cueMatchScore(primaryVTT, candidate.vtt, tolerance) }))
 		.sort((left, right) => right.score - left.score || Math.abs(left.offset) - Math.abs(right.offset))[0];
 }
+
+export function subtitleOffsetCandidates(storedOffset, expanded = false) {
+	const initial = Number.isInteger(storedOffset) ? [storedOffset] : [0, 1, -1];
+	return expanded ? initial.concat([0, 1, -1, 2, -2, 3, -3].filter(offset => !initial.includes(offset))) : initial;
+}
+
+export function hasSufficientVTTMatch(best, cueCount) {
+	return (best?.score ?? 0) >= Math.max(1, Math.ceil(cueCount / 2));
+}

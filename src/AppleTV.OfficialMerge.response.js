@@ -4,7 +4,7 @@ import VTT from "./WebVTT/WebVTT.mjs";
 import Composite from "./class/Composite.mjs";
 import database from "./function/database.mjs";
 import setENV from "./function/setENV.mjs";
-import { cachedTargetURL, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleTrack } from "./function/apple-tv-official-track.mjs";
+import { cachedTargetURL, hasSufficientVTTMatch, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleOffsetCandidates, subtitleTrack } from "./function/apple-tv-official-track.mjs";
 
 const CACHE_KEY = "@DualSubs.Universal.Caches.AppleTVOfficialTracks";
 
@@ -49,17 +49,16 @@ async function run(request, response) {
 	};
 
 	const storedOffset = cache[`${track.key}:${secondary}`]?.offset;
-	const preferredOffsets = track.segment ? (Number.isInteger(storedOffset) ? [storedOffset] : [0, 1, -1]) : [0];
+	const preferredOffsets = track.segment ? subtitleOffsetCandidates(storedOffset) : [0];
 	let candidates = (await Promise.all(preferredOffsets.map(fetchSecondary))).filter(Boolean);
 	let best = selectBestVTTMatch(primaryVTT, candidates, Settings.Tolerance);
-	const minimumMatches = Math.max(1, Math.ceil(primaryVTT.body.length / 2));
-	if (track.segment && Number.isInteger(storedOffset) && (!best || best.score < minimumMatches)) {
-		const fallbackOffsets = [0, 1, -1].filter(offset => offset !== storedOffset);
+	if (track.segment && !hasSufficientVTTMatch(best, primaryVTT.body.length)) {
+		const fallbackOffsets = subtitleOffsetCandidates(storedOffset, true).filter(offset => !preferredOffsets.includes(offset));
 		candidates = candidates.concat((await Promise.all(fallbackOffsets.map(fetchSecondary))).filter(Boolean));
 		best = selectBestVTTMatch(primaryVTT, candidates, Settings.Tolerance);
 	}
-	if (!best?.score) return;
-	if (track.segment && best.score >= minimumMatches && best.offset !== storedOffset) {
+	if (!hasSufficientVTTMatch(best, primaryVTT.body.length)) return;
+	if (track.segment && best.offset !== storedOffset) {
 		rememberTargetOffset(request.url, secondary, primaryLanguages, best.offset, cache);
 		Storage.setItem(CACHE_KEY, cache);
 	}

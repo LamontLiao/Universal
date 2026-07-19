@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { cachedTargetURL, cueMatchScore, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleTrack } from "../src/function/apple-tv-official-track.mjs";
+import { cachedTargetURL, cueMatchScore, hasSufficientVTTMatch, isWebVTT, matchesLanguage, rememberTargetOffset, rememberTargetTrack, responseText, selectBestVTTMatch, subtitleOffsetCandidates, subtitleTrack } from "../src/function/apple-tv-official-track.mjs";
 
 const english = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/english-uuid/P133_A188_en_subtitles_V2-10.webvtt";
 const chinese = "https://vod-fa-aoc.tv.apple.com/itunes-assets/HLSAppleVideo221/v4/chinese-uuid/P133_A188_cmn-Hans_subtitles_V2-11.webvtt";
@@ -50,6 +50,18 @@ test("chooses the segment with the best cue alignment", () => {
 		{ offset: 0, vtt: previous },
 		{ offset: 1, vtt: aligned },
 	])?.offset, 1);
+});
+
+test("widens subtitle segment search only after nearby candidates fail", () => {
+	assert.deepEqual(subtitleOffsetCandidates(undefined), [0, 1, -1]);
+	assert.deepEqual(subtitleOffsetCandidates(undefined, true), [0, 1, -1, 2, -2, 3, -3]);
+	assert.deepEqual(subtitleOffsetCandidates(2), [2]);
+	assert.deepEqual(subtitleOffsetCandidates(2, true), [2, 0, 1, -1, -2, 3, -3]);
+});
+
+test("rejects one-cue boundary overlaps and accepts the aligned segment", () => {
+	assert.equal(hasSufficientVTTMatch({ score: 1 }, 19), false);
+	assert.equal(hasSufficientVTTMatch({ score: 19 }, 19), true);
 });
 
 test("accepts real WebVTT cues and rejects empty bodies", () => {
